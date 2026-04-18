@@ -1,0 +1,28 @@
+# URSim compose for the Raspberry Pi host.
+# Bound on all interfaces so any Mac on the LAN can point `ROBOT_IP` at this Pi.
+
+services:
+  ursim:
+    image: universalrobots/ursim_e-series:5.11
+    container_name: ursim
+    # Pi is arm64; URSim ships only amd64. qemu-user-static handles the translation.
+    platform: linux/amd64
+    ports:
+      - "5900:5900"       # VNC
+      - "6080:6080"       # noVNC web pendant
+      - "29999:29999"     # Dashboard Server
+      - "30001:30001"     # Primary
+      - "30002:30002"     # Secondary
+      - "30003:30003"     # Realtime
+      - "30004:30004"     # RTDE
+    volumes:
+      - /opt/ursim/programs:/ursim/programs
+    environment:
+      ROBOT_MODEL: "UR5"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/29999' 2>/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 60s   # URControl boot is slow under emulation

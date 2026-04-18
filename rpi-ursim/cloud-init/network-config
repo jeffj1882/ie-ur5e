@@ -1,0 +1,13 @@
+version: 2
+ethernets:
+  eth0:
+    dhcp4: true
+    optional: true
+wifis:
+  # Uncomment and edit if you want the Pi to come up on wifi too.
+  # wlan0:
+  #   dhcp4: true
+  #   optional: true
+  #   access-points:
+  #     "YOUR_SSID":
+  #       password: "YOUR_PASSWORD"

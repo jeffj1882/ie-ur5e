@@ -1,0 +1,93 @@
+#cloud-config
+# Cloud-init user-data for the URSim Raspberry Pi.
+# On first boot this provisions docker, qemu-user-static binfmt, and starts
+# URSim as a systemd service. Expect ~10 min cold boot (apt + ~2 GB pull).
+
+hostname: ursim
+manage_etc_hosts: true
+timezone: America/Los_Angeles
+
+users:
+  - name: ursim
+    groups: [users, admin, sudo, docker]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    # Default password: replaced by build.sh. If the template placeholder
+    # is still here, SSH-key login is the only path in.
+    passwd: "@PASSWORD_HASH@"
+    ssh_authorized_keys:
+@SSH_AUTHORIZED_KEYS@
+
+# Auto-update the apt cache before package installs.
+package_update: true
+package_upgrade: false
+packages:
+  - docker.io
+  - docker-compose-v2
+  - qemu-user-static
+  - binfmt-support
+  - avahi-daemon        # lets the host resolve ursim.local
+  - curl
+  - jq
+
+write_files:
+  - path: /opt/ursim/docker-compose.yml
+    owner: root:root
+    permissions: "0644"
+    # Populated below in bootcmd from the FAT partition copy (survives apt
+    # clobbering /opt layout). Placeholder ensures the dir exists first.
+    content: |
+      # placeholder — replaced on first boot by /boot/firmware/ursim-compose.yml
+
+  - path: /etc/systemd/system/ursim.service
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=URSim e-Series simulator
+      Requires=docker.service
+      After=docker.service network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/opt/ursim
+      ExecStartPre=/usr/bin/docker pull --platform linux/amd64 universalrobots/ursim_e-series:5.11
+      ExecStart=/usr/bin/docker compose -f /opt/ursim/docker-compose.yml up -d
+      ExecStop=/usr/bin/docker compose -f /opt/ursim/docker-compose.yml down
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/sysctl.d/99-ursim.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # URSim binds several low-numbered and high-numbered TCP ports.
+      net.ipv4.ip_unprivileged_port_start=29999
+
+runcmd:
+  # 1. Ensure the multi-arch binfmt handlers are registered and persistent.
+  - [ systemctl, enable, --now, systemd-binfmt.service ]
+  - [ sh, -c, "update-binfmts --enable qemu-x86_64 || true" ]
+
+  # 2. Copy the URSim compose file we dropped into /boot/firmware by the builder.
+  - [ sh, -c, "mkdir -p /opt/ursim && cp /boot/firmware/ursim-compose.yml /opt/ursim/docker-compose.yml" ]
+  - [ sh, -c, "mkdir -p /opt/ursim/programs && chown -R ursim:ursim /opt/ursim" ]
+
+  # 3. Start URSim.
+  - [ systemctl, daemon-reload ]
+  - [ systemctl, enable, --now, ursim.service ]
+
+  # 4. Reboot once so all binfmt + cgroup settings take effect cleanly.
+  - [ sh, -c, "touch /var/lib/ursim-first-boot-done" ]
+
+final_message: |
+  URSim Raspberry Pi ready.
+    noVNC pendant: http://ursim.local:6080/vnc.html
+    Dashboard:     ursim.local:29999
+    RTDE:          ursim.local:30004
+  If URControl shows "Mutex error code 95" in `docker logs ursim`, that's the
+  known qemu-user mutex-attr emulation bug — no software fix from this end.

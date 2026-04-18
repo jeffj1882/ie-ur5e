@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UR5e Control — ie-ur5e</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://unpkg.com/htmx.org@2.0.3"></script>
+<style>
+  :root { color-scheme: dark; --bg:#0b0d11; --panel:#151922; --ink:#e7ecf3; --mute:#9aa3b2; --line:#2a3142; --accent:#3b82f6; --green:#2ec27e; --yellow:#f5c000; --red:#ed333b; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.4 system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--ink); margin:0; padding:12px; min-height:100vh; }
+  .bar { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--panel); border-radius:10px; border:1px solid var(--line); }
+  .led { width:18px; height:18px; border-radius:50%; background:#444; box-shadow:0 0 10px rgba(0,0,0,.4) inset; flex-shrink:0; transition:background .2s; }
+  .led.green { background:var(--green); box-shadow:0 0 18px var(--green); }
+  .led.yellow { background:var(--yellow); box-shadow:0 0 18px var(--yellow); }
+  .led.red { background:var(--red); box-shadow:0 0 18px var(--red); }
+  .state { font-family: ui-monospace, Menlo, monospace; font-size:13px; }
+  .state b { color:var(--mute); font-weight:normal; margin-right:4px; }
+  .stop { margin-left:auto; background:var(--red); color:#fff; border:0; padding:14px 28px; border-radius:8px; font:700 16px/1 system-ui; cursor:pointer; letter-spacing:.5px; }
+  .stop:hover { filter:brightness(1.1); }
+  #pstop-bar { background:#3b1e20; border:1px solid #6b2a2d; color:#ffb4b4; padding:12px; border-radius:8px; margin-top:12px; display:flex; gap:12px; align-items:center; }
+  #pstop-bar.hidden { display:none; }
+  .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:12px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .pane { background:var(--panel); border-radius:10px; padding:14px; border:1px solid var(--line); }
+  .pane h2 { margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--mute); }
+  .pane h2:not(:first-child) { margin-top:14px; }
+  .kv { display:grid; grid-template-columns: 40px 1fr; gap:4px 10px; font-family:ui-monospace, Menlo, monospace; font-size:12px; }
+  .kv div:nth-child(odd) { color:var(--mute); }
+  .btn-grid { display:grid; gap:6px; grid-template-columns: 1fr 1fr; }
+  .btn { background:#2a3142; color:var(--ink); border:0; padding:10px; border-radius:6px; cursor:pointer; font:600 12px/1 ui-monospace, Menlo, monospace; text-align:center; }
+  .btn:hover { background:#3a4560; }
+  .btn:active { transform:translateY(1px); }
+  .btn.ghost { background:transparent; border:1px solid var(--line); }
+  .btn.primary { background:var(--accent); }
+  select, input { background:var(--bg); color:var(--ink); border:1px solid var(--line); padding:8px; border-radius:6px; font:12px ui-monospace, Menlo, monospace; width:100%; }
+  .toast { position:fixed; bottom:16px; right:16px; background:var(--panel); border:1px solid var(--line); padding:10px 14px; border-radius:8px; font-family:ui-monospace, Menlo, monospace; font-size:12px; max-width:400px; display:none; }
+  .toast.show { display:block; }
+  .toast.err { border-color:#6b2a2d; color:#ffb4b4; }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div id="led" class="led"></div>
+  <div class="state">
+    <b>safety</b><span id="safety">—</span> &nbsp; <b>mode</b><span id="robotmode">—</span> &nbsp; <b>remote</b><span id="remote">—</span>
+  </div>
+  <button class="stop" hx-post="/stop" hx-swap="none">STOP</button>
+</div>
+
+<div id="pstop-bar" class="hidden">
+  <div style="flex:1">Protective stop active — inspect the workspace before acknowledging.</div>
+  <button class="btn" hx-post="/estop_ack" hx-swap="none">Acknowledge Protective Stop</button>
+</div>
+
+<div class="grid">
+  <div class="pane">
+    <h2>TCP pose (m / rad)</h2>
+    <div class="kv">
+      <div>x</div><div id="tcp-0">—</div>
+      <div>y</div><div id="tcp-1">—</div>
+      <div>z</div><div id="tcp-2">—</div>
+      <div>rx</div><div id="tcp-3">—</div>
+      <div>ry</div><div id="tcp-4">—</div>
+      <div>rz</div><div id="tcp-5">—</div>
+    </div>
+    <h2>Joints (rad)</h2>
+    <div class="kv">
+      <div>q0</div><div id="q-0">—</div>
+      <div>q1</div><div id="q-1">—</div>
+      <div>q2</div><div id="q-2">—</div>
+      <div>q3</div><div id="q-3">—</div>
+      <div>q4</div><div id="q-4">—</div>
+      <div>q5</div><div id="q-5">—</div>
+    </div>
+    <h2>Safety bits</h2>
+    <div class="kv"><div>raw</div><div id="safety-bits">—</div></div>
+  </div>
+
+  <div class="pane">
+    <h2>Jog — joints (±0.05 rad)</h2>
+    <div class="btn-grid">
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":0,"delta":-0.05}' hx-swap="none">- J0</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":0,"delta":0.05}'  hx-swap="none">+ J0</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":1,"delta":-0.05}' hx-swap="none">- J1</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":1,"delta":0.05}'  hx-swap="none">+ J1</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":2,"delta":-0.05}' hx-swap="none">- J2</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":2,"delta":0.05}'  hx-swap="none">+ J2</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":3,"delta":-0.05}' hx-swap="none">- J3</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":3,"delta":0.05}'  hx-swap="none">+ J3</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":4,"delta":-0.05}' hx-swap="none">- J4</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":4,"delta":0.05}'  hx-swap="none">+ J4</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":5,"delta":-0.05}' hx-swap="none">- J5</button>
+      <button class="btn" hx-post="/jog/joint" hx-ext="json-enc" hx-vals='{"index":5,"delta":0.05}'  hx-swap="none">+ J5</button>
+    </div>
+    <h2>Jog - TCP (+/-10 mm)</h2>
+    <div class="btn-grid">
+      <button class="btn" hx-post="/jog/tcp" hx-ext="json-enc" hx-vals='{"axis":"x","delta":-0.01}' hx-swap="none">- X</button>
+      <button class="btn" hx-post="/jog/tcp" hx-ext="json-enc" hx-vals='{"axis":"x","delta":0.01}'  hx-swap="none">+ X</button>
+      <button class="btn" hx-post="/jog/tcp" hx-ext="json-enc" hx-vals='{"axis":"y","delta":-0.01}' hx-swap="none">- Y</button>
+      <button class="btn" hx-post="/jog/tcp" hx-ext="json-enc" hx-vals='{"axis":"y","delta":0.01}'  hx-swap="none">+ Y</button>
+      <button class="btn" hx-post="/jog/tcp" hx-ext="json-enc" hx-vals='{"axis":"z","delta":-0.01}' hx-swap="none">- Z</button>
+      <button class="btn" hx-post="/jog/tcp" hx-ext="json-enc" hx-vals='{"axis":"z","delta":0.01}'  hx-swap="none">+ Z</button>
+    </div>
+  </div>
+
+  <div class="pane">
+    <h2>Power</h2>
+    <div class="btn-grid">
+      <button class="btn" hx-post="/power" hx-ext="json-enc" hx-vals='{"on":true}' hx-swap="none">Power On</button>
+      <button class="btn" hx-post="/power" hx-ext="json-enc" hx-vals='{"on":false}' hx-swap="none">Power Off</button>
+      <button class="btn" hx-post="/brake_release" hx-swap="none">Brake Release</button>
+      <button class="btn" hx-post="/home" hx-swap="none">Home</button>
+      <button class="btn ghost" hx-post="/freedrive" hx-ext="json-enc" hx-vals='{"enable":true}'  hx-swap="none">Freedrive ON</button>
+      <button class="btn ghost" hx-post="/freedrive" hx-ext="json-enc" hx-vals='{"enable":false}' hx-swap="none">Freedrive OFF</button>
+    </div>
+
+    <h2>Programs</h2>
+    <select id="programs"><option>(loading...)</option></select>
+    <div class="btn-grid" style="margin-top:6px">
+      <button class="btn" onclick="loadSelected()">Load</button>
+      <button class="btn primary" hx-post="/play" hx-swap="none">Play</button>
+    </div>
+    <h2>Loaded</h2>
+    <div id="loaded-program" style="font:11px ui-monospace,Menlo,monospace; color:var(--mute); word-break:break-all;">—</div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/htmx.org@2.0.3/dist/ext/json-enc.js"></script>
+<script>
+// Toast helpers
+const toast = document.getElementById("toast");
+let toastTimer;
+function showToast(msg, err) {
+  toast.textContent = msg;
+  toast.classList.toggle("err", !!err);
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 3200);
+}
+document.body.addEventListener("htmx:afterRequest", function (e) {
+  const x = e.detail.xhr;
+  const path = (e.detail.pathInfo && e.detail.pathInfo.requestPath) || "";
+  if (x.status >= 400) showToast(path + " -> " + x.status + " " + x.responseText, true);
+  else if (path && path !== "/state") showToast(path + " -> OK");
+});
+
+// Telemetry WebSocket
+function connectTelemetry() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(proto + "://" + location.host + "/telemetry");
+  ws.onmessage = function (ev) {
+    const d = JSON.parse(ev.data);
+    if (d.tcp) d.tcp.forEach(function (v, i) { document.getElementById("tcp-" + i).textContent = v.toFixed(4); });
+    if (d.joints) d.joints.forEach(function (v, i) { document.getElementById("q-" + i).textContent = v.toFixed(4); });
+    if (d.robotmode) document.getElementById("robotmode").textContent = d.robotmode;
+    if (d.safety) {
+      document.getElementById("safety").textContent = d.safety;
+      const led = document.getElementById("led");
+      let cls = "";
+      if (d.safety === "NORMAL") cls = "green";
+      else if (d.safety === "REDUCED" || d.safety === "RECOVERY") cls = "yellow";
+      else if (d.safety !== "UNKNOWN") cls = "red";
+      led.className = "led " + cls;
+      document.getElementById("pstop-bar").classList.toggle("hidden", d.safety !== "PROTECTIVE_STOP");
+    }
+    if (typeof d.safety_bits === "number") {
+      document.getElementById("safety-bits").textContent = "0x" + d.safety_bits.toString(16).padStart(4, "0");
+    }
+  };
+  ws.onclose = function () { setTimeout(connectTelemetry, 1500); };
+}
+connectTelemetry();
+
+// Programs — populated with safe DOM methods (no innerHTML of untrusted data)
+function clearNode(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+async function refreshPrograms() {
+  const r = await fetch("/programs");
+  const data = await r.json();
+  const sel = document.getElementById("programs");
+  clearNode(sel);
+  (data.programs || []).forEach(function (p) {
+    const o = document.createElement("option");
+    o.value = p;
+    o.textContent = p;
+    sel.appendChild(o);
+  });
+  if (!sel.options.length) {
+    const o = document.createElement("option");
+    o.textContent = "(no .urp files in ursim_programs/)";
+    o.disabled = true;
+    sel.appendChild(o);
+  }
+}
+async function loadSelected() {
+  const program = document.getElementById("programs").value;
+  if (!program || program.indexOf("(") === 0) return;
+  const r = await fetch("/load", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ program: program }) });
+  if (!r.ok) showToast("/load -> " + r.status + " " + (await r.text()), true);
+  else showToast("/load -> " + program);
+}
+refreshPrograms();
+
+async function pollState() {
+  try {
+    const r = await fetch("/state");
+    const d = await r.json();
+    document.getElementById("loaded-program").textContent = d.loaded_program || "(none)";
+    document.getElementById("remote").textContent = d.remote_control === true ? "yes" : d.remote_control === false ? "no" : "—";
+  } catch (e) { /* offline */ }
+}
+setInterval(pollState, 2000);
+pollState();
+</script>
+
+</body>
+</html>

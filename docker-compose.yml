@@ -1,0 +1,34 @@
+# URSim e-Series — PolyScope 5.x simulator for UR5e development.
+# Pinned tag: pick one that matches your shop's pendant firmware.
+# Bump deliberately, never track `latest`.
+
+services:
+  ursim:
+    image: universalrobots/ursim_e-series:5.11
+    container_name: ursim
+    # On Apple Silicon, force amd64 — URSim has no native arm64 image.
+    # On Intel this is a no-op.
+    platform: linux/amd64
+    ports:
+      - "5900:5900"       # VNC
+      - "6080:6080"       # noVNC web pendant
+      - "29999:29999"     # Dashboard Server
+      - "30001:30001"     # Primary client
+      - "30002:30002"     # Secondary client
+      - "30003:30003"     # Realtime interface
+      - "30004:30004"     # RTDE
+    volumes:
+      # URP files dropped in ./ursim_programs become visible inside the pendant
+      # under /ursim/programs (mapped from /root/ursim/programs in the image).
+      - ./ursim_programs:/ursim/programs
+    environment:
+      # Optional: set NETWORK_ENABLED=false to run the sim headless-ish.
+      ROBOT_MODEL: "UR5"
+    restart: unless-stopped
+    healthcheck:
+      # Dashboard port comes up once URSim finishes booting.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/29999' 2>/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 30s

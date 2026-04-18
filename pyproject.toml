@@ -1,0 +1,56 @@
+[project]
+name = "ie-ur5e"
+version = "0.1.0"
+description = "Control stack for the IE UR5e: RTDE motion, Dashboard client, safety watchdog, web panel."
+readme = "README.md"
+authors = [
+    { name = "Improvised Electronics", email = "jeff.jennings@improvisedelectronics.com" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.136.0",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+    "python-socketio>=5.16.1",
+    "pyyaml>=6.0.3",
+    "ur-rtde>=1.6.3",
+    "uvicorn[standard]>=0.44.0",
+]
+
+[project.scripts]
+ie-ur5e-check = "ie_ur5e.cli:check"
+ie-ur5e-dash = "ie_ur5e.cli:dash"
+ie-ur5e-api = "ie_ur5e.cli:api"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# Ship the static HTML panel with the package.
+source-include = ["src/ie_ur5e/static/*.html"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.1",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.11",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true
+ignore_missing_imports = true

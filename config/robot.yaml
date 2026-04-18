@@ -1,0 +1,13 @@
+# UR5e runtime configuration — copied or overridden by ROBOT_IP env var.
+host_ip: 192.168.1.10
+rtde_frequency: 125
+
+# TCP offset expressed as [x, y, z, rx, ry, rz] (meters / rotation vector radians).
+tcp_offset: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+# Payload in kg (include TCP tooling). 0.0 = bare flange.
+payload_kg: 0.0
+
+# Home joints in radians: shoulder-up, elbow tucked — safe against a wall.
+# [base, shoulder, elbow, wrist1, wrist2, wrist3]
+home_joints_rad: [0.0, -1.5707963, 0.0, -1.5707963, 0.0, 0.0]

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env
+.env
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# URSim — writable state files created on first run
+ursim_programs/*.urp.bak
+ursim_programs/default.installation
+ursim_programs/default.installation.problem
+ursim_programs/default.variables
+ursim_programs/default.variables.problem
+
+# rpi-ursim build artefacts (multi-GB, regenerable)
+rpi-ursim/.cache/
+rpi-ursim/ursim-pi.img
+
+# Editor
+.idea/
+.vscode/
