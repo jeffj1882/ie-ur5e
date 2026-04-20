@@ -26,6 +26,9 @@ Icon?
 # Vendor PDFs (UR copyrighted — download via docs/manuals/fetch.sh)
 docs/manuals/*.pdf
 
+# Branded PDF output — regenerate via docs/_branding/build.sh
+docs/pdf/*.pdf
+
 # URSim — writable state files created on first run
 ursim_programs/*.urp.bak
 ursim_programs/default.installation

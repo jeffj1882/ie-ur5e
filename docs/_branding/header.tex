@@ -1,0 +1,93 @@
+% IE-branded preamble for technical PDFs rendered via pandoc + xelatex.
+
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fontspec}
+\usepackage[hidelinks]{hyperref}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{geometry}
+
+\geometry{margin=0.9in, top=1.3in, bottom=1in, headheight=0.6in, headsep=0.25in}
+
+% IE palette — industrial, defence-adjacent. Deep navy + signal orange accent.
+\definecolor{ienavy}{HTML}{0B2545}
+\definecolor{ieaccent}{HTML}{C84B31}
+\definecolor{iemute}{HTML}{5C6B7A}
+\definecolor{iepanel}{HTML}{F2F4F7}
+\definecolor{ierule}{HTML}{DAE0E6}
+
+% Body typography — system-safe stack; fontspec falls back gracefully.
+\setmainfont{Helvetica Neue}[
+  UprightFont = * Light,
+  BoldFont    = * Medium,
+  ItalicFont  = * Light Italic,
+  BoldItalicFont = * Medium Italic
+]
+\setmonofont{Menlo}[Scale=0.92]
+
+% Fallback font for symbols Helvetica Neue doesn't carry (→, ☰, ✔, ■, ·, etc.)
+\usepackage{newunicodechar}
+\newfontfamily\iesym{Apple Symbols}
+\newunicodechar{→}{{\iesym →}}
+\newunicodechar{☰}{{\iesym ☰}}
+\newunicodechar{✔}{{\iesym ✔}}
+\newunicodechar{✓}{{\iesym ✓}}
+\newunicodechar{■}{{\iesym ■}}
+\newunicodechar{•}{{\iesym •}}
+\newunicodechar{▶}{{\iesym ▶}}
+\newunicodechar{⚠}{{\iesym ⚠}}
+\newunicodechar{°}{{\iesym °}}
+\newunicodechar{±}{{\iesym ±}}
+\newunicodechar{…}{{\iesym …}}
+
+% Headings in navy.
+\titleformat{\section}{\color{ienavy}\Large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\color{ienavy}\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\color{ienavy}\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+
+% Hyperlink colour.
+\hypersetup{urlcolor=ieaccent, linkcolor=ienavy}
+
+% ── Header / footer ─────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+% Logo top-left on every page; document title top-right.
+\fancyhead[L]{\raisebox{-0.4\height}{\includegraphics[height=0.35in]{\ielogo}}}
+\fancyhead[R]{\color{iemute}\small\itshape \ietitle}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{ierule}\leaders\hrule height \headrulewidth\hfill}}
+
+\fancyfoot[L]{\color{iemute}\footnotesize Improvised Electronics — ie-ur5e}
+\fancyfoot[C]{\color{iemute}\footnotesize \thepage}
+\fancyfoot[R]{\color{iemute}\footnotesize Rev. \ierevision}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{ierule}\leaders\hrule height \footrulewidth\hfill}}
+
+% Plain pagestyle (first page of each doc, if used) gets the same header.
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyhead[L]{\raisebox{-0.4\height}{\includegraphics[height=0.35in]{\ielogo}}}
+  \fancyhead[R]{\color{iemute}\small\itshape \ietitle}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \fancyfoot[L]{\color{iemute}\footnotesize Improvised Electronics — ie-ur5e}
+  \fancyfoot[C]{\color{iemute}\footnotesize \thepage}
+  \fancyfoot[R]{\color{iemute}\footnotesize Rev. \ierevision}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+% Tight list spacing (pandoc emits \tightlist; make it visible + compact).
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{2pt}\setlength{\parskip}{0pt}}
+
+% Callout-style notes (from > blockquotes)
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable, skins}
+\renewenvironment{quote}{%
+  \begin{tcolorbox}[
+    colback=iepanel, colframe=ienavy, boxrule=0pt,
+    leftrule=3pt, arc=0pt, left=10pt, right=10pt, top=6pt, bottom=6pt,
+    breakable, parbox=false]}{\end{tcolorbox}}
